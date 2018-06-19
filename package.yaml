@@ -33,7 +33,6 @@ library:
   - filepath
   - optparse-applicative
   - regex-pcre
-  - safe-money
   - split
   - text
   - time

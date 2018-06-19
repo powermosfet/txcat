@@ -14,7 +14,7 @@ import Data.Ratio          (Rational)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Csv              as Csv
 
-import MyPrelude ((|>))
+import MyPrelude ((|>), prettyAmount)
 
 newtype CsvDay = CsvDay Day deriving (Show)
 
@@ -30,11 +30,8 @@ data Tx = Tx
 getRatio :: Nok -> Rational
 getRatio (Nok r) = r
 
-readInt :: String -> Integer
-readInt = read
-
 instance Show Tx where
-    show tx@(Tx (CsvDay day) descr _ _) = (show day) ++ "\t" ++ (take 50 ((unpack descr) ++ (replicate 50 ' '))) ++ "\t" ++ (show (getSum tx))
+    show tx@(Tx (CsvDay day) descr _ _) = (show day) ++ " " ++ (take 50 ((unpack descr) ++ (replicate 50 ' '))) ++ "\t" ++ (prettyAmount (getSum tx))
 
 instance Csv.FromField Nok where
     parseField bytes = 
@@ -42,7 +39,7 @@ instance Csv.FromField Nok where
             |> BS.unpack
             |> (\s -> if s == "" then "0" else s)
             |> replace "," "."
-            |> readInt
+            |> (read :: (String -> Double))
             |> toRational
             |> Nok
             |> pure

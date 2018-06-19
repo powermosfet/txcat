@@ -8,9 +8,9 @@ import Data.Text (unpack)
 import Data.Map.Lazy (Map, empty, insertWith, toAscList)
 import Data.Ratio (Rational)
 
-import MyPrelude ((|>))
+import MyPrelude ((|>), prettyAmount)
 import Config (Config(Config), matchers, ignore)
-import Transaction (Tx(Tx), getSum)
+import Transaction (Tx(Tx), getSum, getRatio, amountIn, amountOut)
 
 type Category = String
 
@@ -18,6 +18,8 @@ data Report = Report
     { totals :: Map Category Rational
     , uncategorized :: [Tx]
     , ignored :: [Tx]
+    , totalIn :: Rational
+    , totalOut :: Rational
     }
 
 instance Show Report where
@@ -25,15 +27,16 @@ instance Show Report where
         [ [ "Ignored:" ]
         , map show ignored
         , [ "", "Categories:"]
-        , totals |> toAscList |> map (\(cat, tot) -> (take 30 (cat ++ (replicate 30 ' '))) ++ ": " ++ (show tot))
+        , totals |> toAscList |> map (\(cat, tot) -> (take 30 (cat ++ ":" ++ (replicate 30 ' '))) ++ (prettyAmount tot))
         , [ "", "Uncategorized:" ]
         , map show uncategorized
-        , [ "", "Sum uncategorized: " ++ (uncategorized |> map getSum |> sum |> show)]
+        , [ "", "Sum uncategorized: " ++ (uncategorized |> map getSum |> sum |> prettyAmount)]
+        , [ "", "Total in: " ++ (prettyAmount totalIn) ++ ", out: " ++ (prettyAmount totalOut)]
         ] |> concat
           |> intercalate "\n"
 
 makeReport :: Config -> [Tx] -> Report
-makeReport config txs = foldr (updateReport config) (Report empty [] []) txs
+makeReport config txs = foldr (updateReport config) (Report empty [] [] 0 0) txs
 
 updateReport :: Config -> Tx -> Report -> Report
 updateReport config tx report = 
@@ -43,8 +46,16 @@ updateReport config tx report =
     in
         case (ignore, category) of
             (True, _) -> report { ignored = tx:(ignored report) }
-            (False, "") -> report { uncategorized = tx:(uncategorized report) }
-            (False, _) -> report { totals = insertWith (+) category (getSum tx) (totals report)}
+            (False, "") -> report
+                { uncategorized = tx:(uncategorized report)
+                , totalIn = (totalIn report) + (getRatio $ amountIn tx)
+                , totalOut = (totalOut report) + (getRatio $ amountOut tx)
+                }
+            (False, _) -> report
+                { totals = insertWith (+) category (getSum tx) (totals report)
+                , totalIn = (totalIn report) + (getRatio $ amountIn tx)
+                , totalOut = (totalOut report) + (getRatio $ amountOut tx)
+                }
 
 shouldIgnore :: Config -> Tx -> Bool
 shouldIgnore (Config {..}) (Tx _ description _ _) =
