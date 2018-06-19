@@ -67,4 +67,4 @@ isMonth mm (Tx (CsvDay day) _ _ _) =
     in 
         case mm of
             (Just m) -> month == m
-            _ -> True
+            Nothing -> True
