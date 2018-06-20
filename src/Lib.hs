@@ -9,25 +9,30 @@ import Data.Char (ord)
 import Data.Csv
 import qualified Data.ByteString.Lazy as BS
 
-import Control.Applicative ((<*>))
-
 import MyPrelude ((|>))
-import Options (Options(Options))
+import Options (Options(Options), month, printCategory)
 import Transaction (Tx, isMonth)
 import Config (Config)
-import Report (makeReport)
+import Report (makeReport, printTxOf)
 
 csvParsingOptions :: DecodeOptions
 csvParsingOptions = defaultDecodeOptions { decDelimiter = fromIntegral (ord ';') }
 
 txCat :: Options.Options -> IO ()
-txCat (Options aConfigPath mm theInputFiles) = do
+txCat options@(Options aConfigPath _ _ theInputFiles) = do
     configFile <- BS.readFile aConfigPath
     fileContents <- mapM BS.readFile theInputFiles
-    let eConfig = parseConfig configFile 
-    let eTxs = parseAllCsvs fileContents
-    let eReport = makeReport <$> eConfig <*> fmap (filter (isMonth mm)) eTxs
-    either putStrLn print eReport
+    either putStrLn putStrLn $ getOutput options configFile fileContents
+
+getOutput :: Options.Options -> BS.ByteString -> [BS.ByteString] -> Either String String
+getOutput options configFile inputFiles = do
+    config <- parseConfig configFile
+    txs <- parseAllCsvs inputFiles
+    filteredTxs <- return $ filter (isMonth (month options)) txs
+    case (printCategory options) of
+        Just category -> return $ printTxOf category config filteredTxs
+        Nothing -> return $ makeReport config filteredTxs
+        
 
 parseConfig :: BS.ByteString -> Either String Config
 parseConfig configFileContent = eitherDecode configFileContent
