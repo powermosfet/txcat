@@ -27,7 +27,7 @@ options homeDir = Options
             ))
     <*> optional (strOption
             ( long "print-category"
-              <> short "p"
+              <> short 'p'
               <> help "Print all transactions of a given category"
             ))
     <*> some (argument str (metavar "INPUTFILES..."))
