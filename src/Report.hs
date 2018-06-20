@@ -35,8 +35,8 @@ instance Show Report where
         ] |> concat
           |> intercalate "\n"
 
-makeReport :: Config -> [Tx] -> Report
-makeReport config txs = foldr (updateReport config) (Report empty [] [] 0 0) txs
+makeReport :: Config -> [Tx] -> String
+makeReport config txs = show $ foldr (updateReport config) (Report empty [] [] 0 0) txs
 
 updateReport :: Config -> Tx -> Report -> Report
 updateReport config tx report = 
@@ -64,3 +64,10 @@ shouldIgnore (Config {..}) (Tx _ description _ _) =
 categorize :: Config -> Tx -> Category
 categorize (Config {..}) (Tx _ description _ _) = 
     maybe "" snd $ find (\(pattern, _) -> (unpack description) =~ pattern) matchers
+
+printTxOf :: Category -> Config -> [Tx] -> String
+printTxOf category config txs = 
+    txs
+        |> filter ((== category) . categorize config)
+        |> map show
+        |> intercalate "\n"

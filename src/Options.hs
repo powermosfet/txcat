@@ -7,6 +7,7 @@ import System.FilePath ((</>))
 data Options = Options
     { configPath :: FilePath
     , month :: Maybe Int
+    , printCategory :: Maybe String
     , inputFiles :: [ FilePath ]
     }
 
@@ -23,6 +24,11 @@ options homeDir = Options
             ( long "month"
               <> metavar "MM"
               <> help "only process given month"
+            ))
+    <*> optional (strOption
+            ( long "print-category"
+              <> short "p"
+              <> help "Print all transactions of a given category"
             ))
     <*> some (argument str (metavar "INPUTFILES..."))
 
