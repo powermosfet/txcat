@@ -68,3 +68,12 @@ isMonth mm (Tx (CsvDay day) _ _ _) =
         case mm of
             (Just m) -> month == m
             Nothing -> True
+
+isYear :: Maybe Integer -> Tx -> Bool
+isYear yyyy (Tx (CsvDay day) _ _ _) =
+    let
+        (year, _, _) = toGregorian day
+    in 
+        case yyyy of
+            (Just y) -> year == y
+            Nothing -> True

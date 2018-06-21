@@ -10,8 +10,8 @@ import Data.Csv
 import qualified Data.ByteString.Lazy as BS
 
 import MyPrelude ((|>))
-import Options (Options(Options), month, printCategory)
-import Transaction (Tx, isMonth)
+import Options (Options(Options), month, year, printCategory)
+import Transaction (Tx, isMonth, isYear)
 import Config (Config)
 import Report (makeReport, printTxOf)
 
@@ -19,7 +19,7 @@ csvParsingOptions :: DecodeOptions
 csvParsingOptions = defaultDecodeOptions { decDelimiter = fromIntegral (ord ';') }
 
 txCat :: Options.Options -> IO ()
-txCat options@(Options aConfigPath _ _ theInputFiles) = do
+txCat options@(Options aConfigPath _ _ _ theInputFiles) = do
     configFile <- BS.readFile aConfigPath
     fileContents <- mapM BS.readFile theInputFiles
     either putStrLn putStrLn $ getOutput options configFile fileContents
@@ -28,7 +28,10 @@ getOutput :: Options.Options -> BS.ByteString -> [BS.ByteString] -> Either Strin
 getOutput options configFile inputFiles = do
     config <- parseConfig configFile
     txs <- parseAllCsvs inputFiles
-    filteredTxs <- return $ filter (isMonth (month options)) txs
+    filteredTxs <- txs 
+        |> filter (isMonth (month options))
+        |> filter (isYear (year options))
+        |> return
     case (printCategory options) of
         Just category -> return $ printTxOf category config filteredTxs
         Nothing -> return $ makeReport config filteredTxs
