@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Transaction where
 
@@ -16,7 +17,7 @@ import qualified Data.Csv              as Csv
 
 import MyPrelude ((|>), prettyAmount)
 
-newtype CsvDay = CsvDay Day deriving (Show)
+newtype CsvDay = CsvDay Day deriving (Show, Eq, Ord)
 
 newtype Nok = Nok Rational
 
