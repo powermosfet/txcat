@@ -7,11 +7,12 @@ import Data.Aeson (eitherDecode)
 import qualified Data.Vector as Vector
 import Data.Char (ord)
 import Data.Csv
+import Data.List (sortOn)
 import qualified Data.ByteString.Lazy as BS
 
 import MyPrelude ((|>))
 import Options (Options(Options), month, year, printCategory)
-import Transaction (Tx, isMonth, isYear)
+import Transaction (Tx, date, isMonth, isYear)
 import Config (Config)
 import Report (makeReport, printTxOf)
 
@@ -31,6 +32,7 @@ getOutput options configFile inputFiles = do
     filteredTxs <- txs 
         |> filter (isMonth (month options))
         |> filter (isYear (year options))
+        |> sortOn date
         |> return
     case (printCategory options) of
         Just category -> return $ printTxOf category config filteredTxs
