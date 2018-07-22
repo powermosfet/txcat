@@ -21,3 +21,8 @@ prettyAmount r =
         |> take 9
         |> reverse
 
+rPad :: Int -> String -> String
+rPad n s = take n (s ++ (replicate n ' '))
+
+lPad :: Int -> String -> String
+lPad n s = reverse $ rPad n (reverse s)

@@ -4,12 +4,18 @@ import Options.Applicative
 import Data.Monoid ((<>))
 import System.FilePath ((</>))
 
+data Format 
+    = OneLine
+    | Ledger String
+        deriving (Show, Read)
+
 data Options = Options
     { configPath :: FilePath
     , month :: Maybe Int
     , year :: Maybe Integer
     , printCategory :: Maybe String
     , inputFiles :: [ FilePath ]
+    , format :: Format
     }
 
 options :: FilePath -> Parser Options
@@ -39,6 +45,13 @@ options homeDir = Options
               <> help "Print all transactions of a given category"
             ))
     <*> some (argument str (metavar "INPUTFILES..."))
+    <*> option auto
+        ( long "format"
+        <> metavar "FORMAT"
+        <> help "output format for transactions"
+        <> showDefault
+        <> value OneLine
+        )
 
 optionsWithInfo :: FilePath -> ParserInfo Options
 optionsWithInfo homeDir = info (options homeDir <**> helper)

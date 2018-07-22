@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Transaction where
 
 import Control.Applicative ((<*>))
 import Data.Csv            ((.:))
 import Data.List.Extra     (replace)
-import Data.Text           (Text, unpack)
+import Data.Text           (Text)
 import Data.Text.Encoding  (decodeLatin1)
 import Data.Time           (Day, toGregorian)
 import Data.Time.Format    (parseTimeM, defaultTimeLocale)
@@ -14,24 +15,24 @@ import Data.Ratio          (Rational)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Csv              as Csv
 
-import MyPrelude ((|>), prettyAmount)
+import MyPrelude ((|>))
 
-newtype CsvDay = CsvDay Day deriving (Show)
+newtype CsvDay = CsvDay Day deriving (Show, Eq, Ord)
 
 newtype Nok = Nok Rational
 
+newtype Category = Category String deriving (Eq, Ord)
+
 data Tx = Tx
-    { date :: CsvDay
-    , description :: Text
-    , amountIn :: Nok
-    , amountOut :: Nok
+    { txDate :: CsvDay
+    , txDescription :: Text
+    , txAmountIn :: Nok
+    , txAmountOut :: Nok
+    , txCategory :: Category
     } 
 
 getRatio :: Nok -> Rational
 getRatio (Nok r) = r
-
-instance Show Tx where
-    show tx@(Tx (CsvDay day) descr _ _) = (show day) ++ " " ++ (take 50 ((unpack descr) ++ (replicate 50 ' '))) ++ "\t" ++ (prettyAmount (getSum tx))
 
 instance Csv.FromField Nok where
     parseField bytes = 
@@ -56,12 +57,13 @@ instance Csv.FromNamedRecord Tx where
         <*> fmap decodeLatin1 (r .: "Beskrivelse")
         <*> r .: "Inn"
         <*> r .: "Ut"
+        <*> pure (Category "")
 
 getSum :: Tx -> Rational
-getSum (Tx _ _ (Nok i) (Nok o)) = i + o
+getSum (Tx _ _ (Nok i) (Nok o) _) = i + o
 
 isMonth :: Maybe Int -> Tx -> Bool
-isMonth mm (Tx (CsvDay day) _ _ _) =
+isMonth mm (Tx (CsvDay day) _ _ _ _) =
     let
         (_, month, _) = toGregorian day
     in 
@@ -70,10 +72,13 @@ isMonth mm (Tx (CsvDay day) _ _ _) =
             Nothing -> True
 
 isYear :: Maybe Integer -> Tx -> Bool
-isYear yyyy (Tx (CsvDay day) _ _ _) =
+isYear yyyy (Tx (CsvDay day) _ _ _ _) =
     let
         (year, _, _) = toGregorian day
     in 
         case yyyy of
             (Just y) -> year == y
             Nothing -> True
+
+isCategory :: Category -> Tx -> Bool
+isCategory category = (== category) . txCategory

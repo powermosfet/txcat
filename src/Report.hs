@@ -3,16 +3,16 @@
 module Report where
 
 import Text.Regex.PCRE ((=~))
-import Data.List (find, intercalate)
 import Data.Text (unpack)
 import Data.Map.Lazy (Map, empty, insertWith, toAscList)
 import Data.Ratio (Rational)
+import Control.Monad (foldM)
+import Control.Monad.Reader (ask)
 
-import MyPrelude ((|>), prettyAmount)
-import Config (Config(Config), matchers, ignore)
-import Transaction (Tx(Tx), getSum, getRatio, amountIn, amountOut)
-
-type Category = String
+import App (App)
+import MyPrelude ((|>), prettyAmount, rPad)
+import Config (ignore)
+import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, isCategory, getSum, getRatio, txAmountIn, txAmountOut)
 
 data Report = Report
     { totals :: Map Category Rational
@@ -22,52 +22,54 @@ data Report = Report
     , totalOut :: Rational
     }
 
-instance Show Report where
-    show (Report {..}) = 
-        [ [ "Ignored:" ]
-        , map show ignored
-        , [ "", "Categories:"]
-        , totals |> toAscList |> map (\(cat, tot) -> (take 30 (cat ++ ":" ++ (replicate 30 ' '))) ++ (prettyAmount tot))
-        , [ "", "Uncategorized:" ]
-        , map show uncategorized
-        , [ "", "Sum uncategorized: " ++ (uncategorized |> map getSum |> sum |> prettyAmount)]
-        , [ "", "Total in: " ++ (prettyAmount totalIn) ++ ", out: " ++ (prettyAmount totalOut)]
-        ] |> concat
-          |> intercalate "\n"
+txView :: Tx -> App String
+txView tx@(Tx (CsvDay day) descr _ _ _) =
+    return $ (show day) ++ " " ++ (rPad 50 (unpack descr)) ++ "\t" ++ (prettyAmount (getSum tx))
 
-makeReport :: Config -> [Tx] -> String
-makeReport config txs = show $ foldr (updateReport config) (Report empty [] [] 0 0) txs
+catView :: Category -> String
+catView (Category c) = c
 
-updateReport :: Config -> Tx -> Report -> Report
-updateReport config tx report = 
-    let
-        ignore = shouldIgnore config tx
-        category = categorize config tx
-    in
-        case (ignore, category) of
-            (True, _) -> report { ignored = tx:(ignored report) }
-            (False, "") -> report
-                { uncategorized = tx:(uncategorized report)
-                , totalIn = (totalIn report) + (getRatio $ amountIn tx)
-                , totalOut = (totalOut report) + (getRatio $ amountOut tx)
-                }
-            (False, _) -> report
-                { totals = insertWith (+) category (getSum tx) (totals report)
-                , totalIn = (totalIn report) + (getRatio $ amountIn tx)
-                , totalOut = (totalOut report) + (getRatio $ amountOut tx)
-                }
+totalView :: (Category, Rational) -> String
+totalView (cat, tot) = rPad 30 (catView cat) ++ prettyAmount tot
 
-shouldIgnore :: Config -> Tx -> Bool
-shouldIgnore (Config {..}) (Tx _ description _ _) =
-        any ((unpack description) =~) ignore
+reportView :: Report -> App String
+reportView (Report {..}) = do
+    ignoredView <- mapM txView ignored
+    let totalsView = totals |> toAscList |> map totalView
+    uncategorizedView <- mapM txView uncategorized
+    return $ [ ("Ignored:" : ignoredView)
+             , ("\nCategories:" : totalsView)
+             , ("\nUncategorized:" : uncategorizedView)
+             , [ ("Sum uncategorized: " ++ (uncategorized |> map getSum |> sum |> prettyAmount))]
+             , [ ("Total in: " ++ (prettyAmount totalIn) ++ ", out: " ++ (prettyAmount totalOut))]
+             ] |> (unlines . concat)
 
-categorize :: Config -> Tx -> Category
-categorize (Config {..}) (Tx _ description _ _) = 
-    maybe "" snd $ find (\(pattern, _) -> (unpack description) =~ pattern) matchers
+makeReport :: [Tx] -> App Report
+makeReport txs = 
+    foldM updateReport (Report empty [] [] 0 0) txs
 
-printTxOf :: Category -> Config -> [Tx] -> String
-printTxOf category config txs = 
-    txs
-        |> filter ((== category) . categorize config)
-        |> map show
-        |> intercalate "\n"
+updateReport :: Report -> Tx -> App Report
+updateReport report tx = do
+    ignore <- shouldIgnore tx
+    let category = txCategory tx
+    return $ case (ignore, category) of
+        (True, _) -> report { ignored = tx:(ignored report) }
+        (False, Category "") -> report
+            { uncategorized = tx:(uncategorized report)
+            , totalIn = (totalIn report) + (getRatio $ txAmountIn tx)
+            , totalOut = (totalOut report) + (getRatio $ txAmountOut tx)
+            }
+        (False, _) -> report
+            { totals = insertWith (+) category (getSum tx) (totals report)
+            , totalIn = (totalIn report) + (getRatio $ txAmountIn tx)
+            , totalOut = (totalOut report) + (getRatio $ txAmountOut tx)
+            }
+
+shouldIgnore :: Tx -> App Bool
+shouldIgnore  (Tx _ description _ _ _) = do
+    (config, _) <- ask
+    return $ any ((unpack description) =~) (ignore config)
+
+printTxOf :: Category -> [Tx] -> App String
+printTxOf category txs =
+    unlines <$> (mapM txView (filter (isCategory category) txs))
