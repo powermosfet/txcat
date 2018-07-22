@@ -46,8 +46,8 @@ categorize tx = do
 
 shouldIgnore :: Tx -> App Tx
 shouldIgnore  tx@(Tx _ description _ _ _ _) = do
-    (config, _) <- ask
-    let ignored = any ((unpack description) =~) (ignore config)
+    (Config { ignore = ignore }, _) <- ask
+    let ignored = any ((unpack description) =~) ignore
     return $ tx { txIgnored = ignored }
 
 app :: [Tx] -> App String
@@ -61,9 +61,9 @@ app txs = do
         >>= mapM shouldIgnore
     let notIgnored = filter (not . txIgnored) allTxs
     case (printCategory, printAll) of
-        (Just category, _) -> printTx (filter (isCategory (Category category)) allTxs)
+        (Just category, _) -> printTx (filter (isCategory (Category category)) notIgnored)
         (Nothing, True) -> printTx notIgnored
-        (Nothing, False) -> makeReport notIgnored >>= reportView
+        (Nothing, False) -> makeReport allTxs >>= reportView
         
 
 parseConfig :: BS.ByteString -> Either String Config
