@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as BS
 import MyPrelude ((|>))
 import Options (Options(Options), month, year, printCategory)
 import Transaction (Tx, Category(Category), isMonth, isYear, txDate, txCategory, txDescription)
-import Config (Config, matchers)
+import Config (Config(Config), matchers)
 import Report (makeReport, reportView, printTxOf)
 import App (App, runApp)
 
@@ -38,9 +38,9 @@ tryReadFiles options configFile inputFiles = do
 
 categorize :: Tx -> App Tx
 categorize tx = do
-    (config, _) <- ask
+    (Config { matchers = matchers }, _) <- ask
     let descr = (unpack (txDescription tx))
-    let theCategory = maybe "" snd $ find (\(pattern, _) -> descr =~ pattern) (matchers config)
+    let theCategory = maybe "" snd $ find (\(pattern, _) -> descr =~ pattern) matchers
     return $ tx { txCategory = Category theCategory }
 
 app :: [Tx] -> App String
