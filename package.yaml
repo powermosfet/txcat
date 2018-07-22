@@ -37,6 +37,7 @@ library:
   - text
   - time
   - vector
+  - mtl
 
 executables:
   txcat:

@@ -2,14 +2,29 @@ module Options where
 
 import Options.Applicative
 import Data.Monoid ((<>))
+import Data.Char (toLower)
 import System.FilePath ((</>))
+
+data Format 
+    = OneLine
+    | Ledger String
+        deriving (Show)
+
+instance Read Format where
+    readsPrec _ = \s -> case words s of
+        [ledger, account] -> case map toLower ledger of
+            "ledger" -> [(Ledger account, "")]
+            _ -> [(OneLine, "")]
+        _ -> [(OneLine, "")]
 
 data Options = Options
     { configPath :: FilePath
     , month :: Maybe Int
     , year :: Maybe Integer
     , printCategory :: Maybe String
+    , printAll :: Bool
     , inputFiles :: [ FilePath ]
+    , format :: Format
     }
 
 options :: FilePath -> Parser Options
@@ -34,11 +49,22 @@ options homeDir = Options
               <> help "only process transactions from year YYYY"
             ))
     <*> optional (strOption
-            ( long "print-category"
+            ( long "printCategory"
               <> short 'p'
               <> help "Print all transactions of a given category"
             ))
+    <*> switch
+        ( long "printAll"
+        <> help "Print all transactions instead of report" 
+        )
     <*> some (argument str (metavar "INPUTFILES..."))
+    <*> option auto
+        ( long "format"
+        <> metavar "FORMAT"
+        <> help "output format for transactions"
+        <> showDefault
+        <> value OneLine
+        )
 
 optionsWithInfo :: FilePath -> ParserInfo Options
 optionsWithInfo homeDir = info (options homeDir <**> helper)

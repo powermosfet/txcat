@@ -13,6 +13,7 @@ data Config = Config
     { ignore :: [ Pattern ]
     , matchers :: [ ( Pattern, Category ) ]
     , month :: Maybe Int
+    , defaultCategory :: Maybe String
     } deriving (Generic, Show)
 
 instance FromJSON Config 
