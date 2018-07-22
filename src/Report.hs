@@ -12,7 +12,8 @@ import Control.Monad.Reader (ask)
 import App (App)
 import MyPrelude ((|>), prettyAmount, rPad)
 import Config (ignore)
-import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, isCategory, getSum, getRatio, txAmountIn, txAmountOut)
+import Options (Options(Options), format, Format(OneLine, Ledger))
+import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, isCategory, getSum, getRatio, txAmountIn, txAmountOut, ledgerDate)
 
 data Report = Report
     { totals :: Map Category Rational
@@ -23,8 +24,21 @@ data Report = Report
     }
 
 txView :: Tx -> App String
-txView tx@(Tx (CsvDay day) descr _ _ _) =
-    return $ (show day) ++ " " ++ (rPad 50 (unpack descr)) ++ "\t" ++ (prettyAmount (getSum tx))
+txView tx = do
+    (_, Options { format = format }) <- ask
+    return $ case format of
+        OneLine -> txViewOneline tx
+        Ledger acc -> txViewLedger acc tx
+        
+txViewOneline :: Tx -> String
+txViewOneline tx@(Tx (CsvDay day) descr _ _ _) = 
+    (show day) ++ " " ++ (rPad 50 (unpack descr)) ++ "\t" ++ (prettyAmount (getSum tx))
+
+txViewLedger :: String -> Tx -> String
+txViewLedger account tx@(Tx day descr _ _ (Category category)) =
+    "\n" ++ ledgerDate day ++ " " ++ (unpack descr) ++ 
+        "\n\t" ++ account ++ "\t\t" ++ (prettyAmount (getSum tx)) ++ 
+        "\n\t" ++ category ++ "\t\t"
 
 catView :: Category -> String
 catView (Category c) = c

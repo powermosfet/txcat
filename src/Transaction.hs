@@ -82,3 +82,10 @@ isYear yyyy (Tx (CsvDay day) _ _ _ _) =
 
 isCategory :: Category -> Tx -> Bool
 isCategory category = (== category) . txCategory
+
+ledgerDate :: CsvDay -> String
+ledgerDate (CsvDay day) = 
+    let
+        (yyyy, mm, dd) = toGregorian day
+    in
+        (show yyyy) ++ "/" ++ (show mm) ++ "/" ++ (show dd)
