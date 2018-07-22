@@ -13,7 +13,7 @@ import App (App)
 import MyPrelude ((|>), prettyAmount, rPad)
 import Config (ignore)
 import Options (Options(Options), format, Format(OneLine, Ledger))
-import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, isCategory, getSum, getRatio, txAmountIn, txAmountOut, ledgerDate)
+import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, getSum, getRatio, txAmountIn, txAmountOut, ledgerDate)
 
 data Report = Report
     { totals :: Map Category Rational
@@ -84,6 +84,6 @@ shouldIgnore  (Tx _ description _ _ _) = do
     (config, _) <- ask
     return $ any ((unpack description) =~) (ignore config)
 
-printTxOf :: Category -> [Tx] -> App String
-printTxOf category txs =
-    unlines <$> (mapM txView (filter (isCategory category) txs))
+printTx :: [Tx] -> App String
+printTx txs =
+    unlines <$> (mapM txView txs)

@@ -14,6 +14,7 @@ data Options = Options
     , month :: Maybe Int
     , year :: Maybe Integer
     , printCategory :: Maybe String
+    , printAll :: Bool
     , inputFiles :: [ FilePath ]
     , format :: Format
     }
@@ -40,10 +41,14 @@ options homeDir = Options
               <> help "only process transactions from year YYYY"
             ))
     <*> optional (strOption
-            ( long "print-category"
+            ( long "printCategory"
               <> short 'p'
               <> help "Print all transactions of a given category"
             ))
+    <*> switch
+        ( long "printAll"
+        <> help "Print all transactions instead of report" 
+        )
     <*> some (argument str (metavar "INPUTFILES..."))
     <*> option auto
         ( long "format"

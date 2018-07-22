@@ -15,17 +15,17 @@ import Data.Text (unpack)
 import qualified Data.ByteString.Lazy as BS
 
 import MyPrelude ((|>))
-import Options (Options(Options), month, year, printCategory)
-import Transaction (Tx, Category(Category), isMonth, isYear, txDate, txCategory, txDescription)
-import Config (Config(Config), matchers)
-import Report (makeReport, reportView, printTxOf)
+import Options (Options(Options), month, year, printCategory, printAll)
+import Transaction (Tx, Category(Category), isMonth, isYear, txDate, txCategory, txDescription, isCategory)
+import Config (Config(Config), matchers, defaultCategory)
+import Report (makeReport, reportView, printTx)
 import App (App, runApp)
 
 csvParsingOptions :: DecodeOptions
 csvParsingOptions = defaultDecodeOptions { decDelimiter = fromIntegral (ord ';') }
 
 txCat :: Options.Options -> IO ()
-txCat options@(Options aConfigPath _ _ _ theInputFiles _) = do
+txCat options@(Options aConfigPath _ _ _ _ theInputFiles _) = do
     configFile <- BS.readFile aConfigPath
     fileContents <- mapM BS.readFile theInputFiles
     either putStrLn putStrLn $ tryReadFiles options configFile fileContents
@@ -38,22 +38,24 @@ tryReadFiles options configFile inputFiles = do
 
 categorize :: Tx -> App Tx
 categorize tx = do
-    (Config { matchers = matchers }, _) <- ask
+    (Config { matchers = matchers, defaultCategory = mDefaultCategory }, _) <- ask
+    let defaultCategory = maybe "" id mDefaultCategory
     let descr = (unpack (txDescription tx))
-    let theCategory = maybe "" snd $ find (\(pattern, _) -> descr =~ pattern) matchers
+    let theCategory = maybe defaultCategory snd $ find (\(pattern, _) -> descr =~ pattern) matchers
     return $ tx { txCategory = Category theCategory }
 
 app :: [Tx] -> App String
 app txs = do
-    (_, options) <- ask
+    (_, Options {..}) <- ask
     txs' <- txs
-        |> filter (isMonth (month options))
-        |> filter (isYear (year options))
+        |> filter (isMonth month)
+        |> filter (isYear year)
         |> sortWith txDate
         |> mapM categorize
-    case (printCategory options) of
-        Just category -> printTxOf (Category category) txs'
-        Nothing -> makeReport txs' >>= reportView
+    case (printCategory, printAll) of
+        (Just category, _) -> printTx (filter (isCategory (Category category)) txs')
+        (Nothing, True) -> printTx txs'
+        (Nothing, False) -> makeReport txs' >>= reportView
         
 
 parseConfig :: BS.ByteString -> Either String Config
