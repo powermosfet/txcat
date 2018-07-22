@@ -29,6 +29,7 @@ data Tx = Tx
     , txAmountIn :: Nok
     , txAmountOut :: Nok
     , txCategory :: Category
+    , txIgnored :: Bool
     } 
 
 getRatio :: Nok -> Rational
@@ -58,12 +59,13 @@ instance Csv.FromNamedRecord Tx where
         <*> r .: "Inn"
         <*> r .: "Ut"
         <*> pure (Category "")
+        <*> pure False
 
 getSum :: Tx -> Rational
-getSum (Tx _ _ (Nok i) (Nok o) _) = i + o
+getSum (Tx _ _ (Nok i) (Nok o) _ _) = i + o
 
 isMonth :: Maybe Int -> Tx -> Bool
-isMonth mm (Tx (CsvDay day) _ _ _ _) =
+isMonth mm (Tx (CsvDay day) _ _ _ _ _) =
     let
         (_, month, _) = toGregorian day
     in 
@@ -72,7 +74,7 @@ isMonth mm (Tx (CsvDay day) _ _ _ _) =
             Nothing -> True
 
 isYear :: Maybe Integer -> Tx -> Bool
-isYear yyyy (Tx (CsvDay day) _ _ _ _) =
+isYear yyyy (Tx (CsvDay day) _ _ _ _ _) =
     let
         (year, _, _) = toGregorian day
     in 

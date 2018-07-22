@@ -2,7 +2,6 @@
 
 module Report where
 
-import Text.Regex.PCRE ((=~))
 import Data.Text (unpack)
 import Data.Map.Lazy (Map, empty, insertWith, toAscList)
 import Data.Ratio (Rational)
@@ -11,9 +10,8 @@ import Control.Monad.Reader (ask)
 
 import App (App)
 import MyPrelude ((|>), prettyAmount, rPad)
-import Config (ignore)
 import Options (Options(Options), format, Format(OneLine, Ledger))
-import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, getSum, getRatio, txAmountIn, txAmountOut, ledgerDate)
+import Transaction (Tx(Tx), Category(Category), CsvDay(CsvDay), txCategory, getSum, getRatio, txAmountIn, txAmountOut, txIgnored, ledgerDate)
 
 data Report = Report
     { totals :: Map Category Rational
@@ -31,11 +29,11 @@ txView tx = do
         Ledger acc -> txViewLedger acc tx
         
 txViewOneline :: Tx -> String
-txViewOneline tx@(Tx (CsvDay day) descr _ _ _) = 
+txViewOneline tx@(Tx (CsvDay day) descr _ _ _ _) = 
     (show day) ++ " " ++ (rPad 50 (unpack descr)) ++ "\t" ++ (prettyAmount (getSum tx))
 
 txViewLedger :: String -> Tx -> String
-txViewLedger account tx@(Tx day descr _ _ (Category category)) =
+txViewLedger account tx@(Tx day descr _ _ (Category category) _) =
     "\n" ++ ledgerDate day ++ " " ++ (unpack descr) ++ 
         "\n\t" ++ account ++ "\t\t" ++ (prettyAmount (getSum tx)) ++ 
         "\n\t" ++ category ++ "\t\t"
@@ -64,7 +62,7 @@ makeReport txs =
 
 updateReport :: Report -> Tx -> App Report
 updateReport report tx = do
-    ignore <- shouldIgnore tx
+    let ignore = txIgnored tx
     let category = txCategory tx
     return $ case (ignore, category) of
         (True, _) -> report { ignored = tx:(ignored report) }
@@ -78,11 +76,6 @@ updateReport report tx = do
             , totalIn = (totalIn report) + (getRatio $ txAmountIn tx)
             , totalOut = (totalOut report) + (getRatio $ txAmountOut tx)
             }
-
-shouldIgnore :: Tx -> App Bool
-shouldIgnore  (Tx _ description _ _ _) = do
-    (config, _) <- ask
-    return $ any ((unpack description) =~) (ignore config)
 
 printTx :: [Tx] -> App String
 printTx txs =

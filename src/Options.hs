@@ -2,12 +2,20 @@ module Options where
 
 import Options.Applicative
 import Data.Monoid ((<>))
+import Data.Char (toLower)
 import System.FilePath ((</>))
 
 data Format 
     = OneLine
     | Ledger String
-        deriving (Show, Read)
+        deriving (Show)
+
+instance Read Format where
+    readsPrec _ = \s -> case words s of
+        [ledger, account] -> case map toLower ledger of
+            "ledger" -> [(Ledger account, "")]
+            _ -> [(OneLine, "")]
+        _ -> [(OneLine, "")]
 
 data Options = Options
     { configPath :: FilePath

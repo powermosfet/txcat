@@ -16,8 +16,8 @@ import qualified Data.ByteString.Lazy as BS
 
 import MyPrelude ((|>))
 import Options (Options(Options), month, year, printCategory, printAll)
-import Transaction (Tx, Category(Category), isMonth, isYear, txDate, txCategory, txDescription, isCategory)
-import Config (Config(Config), matchers, defaultCategory)
+import Transaction (Tx(Tx), Category(Category), isMonth, isYear, txDate, txCategory, txDescription, txIgnored, isCategory)
+import Config (Config(Config), matchers, ignore, defaultCategory)
 import Report (makeReport, reportView, printTx)
 import App (App, runApp)
 
@@ -44,18 +44,26 @@ categorize tx = do
     let theCategory = maybe defaultCategory snd $ find (\(pattern, _) -> descr =~ pattern) matchers
     return $ tx { txCategory = Category theCategory }
 
+shouldIgnore :: Tx -> App Tx
+shouldIgnore  tx@(Tx _ description _ _ _ _) = do
+    (config, _) <- ask
+    let ignored = any ((unpack description) =~) (ignore config)
+    return $ tx { txIgnored = ignored }
+
 app :: [Tx] -> App String
 app txs = do
     (_, Options {..}) <- ask
-    txs' <- txs
+    allTxs <- txs
         |> filter (isMonth month)
         |> filter (isYear year)
         |> sortWith txDate
         |> mapM categorize
+        >>= mapM shouldIgnore
+    let notIgnored = filter (not . txIgnored) allTxs
     case (printCategory, printAll) of
-        (Just category, _) -> printTx (filter (isCategory (Category category)) txs')
-        (Nothing, True) -> printTx txs'
-        (Nothing, False) -> makeReport txs' >>= reportView
+        (Just category, _) -> printTx (filter (isCategory (Category category)) allTxs)
+        (Nothing, True) -> printTx notIgnored
+        (Nothing, False) -> makeReport notIgnored >>= reportView
         
 
 parseConfig :: BS.ByteString -> Either String Config
